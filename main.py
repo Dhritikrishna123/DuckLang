@@ -1,40 +1,64 @@
 from src.lexer import Lexer
+from src.parser.main_parser import MainParser
 
-# Sample source code input
-source_code =   """
-                    def match(self, text):
-        if self.source[self.position.index:self.position.index + len(text)] -> == text:
-            for . in range(len(text)):  
-                self.advance()
-            return True
-        return False
+# ========================
+# 1. Source Code Input
+# ========================
+source_code = """
+var = 56
+x = 3
+hello = (var + x)
 
-                """
+"""
 
-# Initialize lexer
+# ========================
+# 2. Lexical Analysis
+# ========================
+print("\n🔍 [Lexical Analysis]")
 lexer = Lexer()
 tokens = lexer.tokenize(source_code)
 
-# Print detailed token information
+# Detailed Token Information
 print("\n📝 Token Details:")
 for token in tokens:
     print(f"🔹 {token}")
 
-# Print a nicely formatted table
+# Token Table
 print("\n📌 Token Table:")
 
 # Define column widths
-col_widths = [30, 12, 14, 12, 6, 8]
+col_widths = [20, 12, 14, 12, 6, 8]
 line_sep = "+" + "+".join(["-" * w for w in col_widths]) + "+"
 
-# Print table header
+# Table Header
 print(line_sep)
 print(f"| {'Type':<20} | {'Value':<12} | {'Start Index':<14} | {'End Index':<12} | {'Line':<6} | {'Column':<8} |")
 print(line_sep)
 
-# Print table rows
+# Token Rows
 for token in tokens:
     print(f"| {str(token.token_type):<20} | {str(token.value):<12} | {str(token.start_pos.index):<14} | {str(token.end_pos.index):<12} | {str(token.start_pos.line):<6} | {str(token.start_pos.column):<8} |")
 
-# Print table footer
 print(line_sep)
+
+# ========================
+# 3. Parsing & Symbol Table
+# ========================
+print("\n🌳 [Parsing]")
+try:
+    parser = MainParser(tokens)
+    ast = parser.parse()
+
+    # Pretty Printed AST
+    print("\n🧠 AST Nodes:")
+    for statement in ast:
+        print(f"🔸 {statement}")
+
+    # Symbol Table Dump
+    parser.symbol_table.dump()
+
+    print("\n🎯 Parsing Completed Successfully!")
+except SyntaxError as e:
+    print(f"❌ Syntax Error: {e}")
+except Exception as e:
+    print(f"⚠️ Error: {e}")

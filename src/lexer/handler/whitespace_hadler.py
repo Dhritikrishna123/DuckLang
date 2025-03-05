@@ -3,7 +3,7 @@ from ..state import LexerState
 from .base import TokenHandler
 
 class WhiteSpaceHandler(TokenHandler):
-    def __init__(self, store_whitespace=True):
+    def __init__(self, store_whitespace=False):
         self.store_whitespace = store_whitespace
 
     def can_handle(self, state: LexerState) -> bool:

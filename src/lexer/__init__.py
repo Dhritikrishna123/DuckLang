@@ -5,7 +5,6 @@ from .handler.number_handler import NumberHandler
 from .handler.string_handler import StringHandler
 from .handler.operator_handler import OperatorHandler
 from .handler.identifier_handler import IdentifierHandler
-from .handler.miscellanious_handler import MiscellaneousHandler
 from .token_types import TokenType
 
 class Lexer:
@@ -22,7 +21,6 @@ class Lexer:
             StringHandler(),
             OperatorHandler(),
             IdentifierHandler(),
-            MiscellaneousHandler(),
         ]
 
     def tokenize(self, source):

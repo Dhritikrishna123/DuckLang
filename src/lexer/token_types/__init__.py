@@ -65,6 +65,7 @@ class TokenType(Enum):
     ASSIGN = "ASSIGN"
     ARROW = "ARROW"
     WHITESPACE = "WHITESPACE"
+    NEWLINE = "NEWLINE"  
 
 class Position:
     def __init__(self, line, column):
