@@ -1,6 +1,6 @@
-from .base_node import ASTNode
+from .base_node import BaseNode
 
-class ReturnNode(ASTNode):
+class ReturnNode(BaseNode):
     """AST node for return statements."""
 
     def __init__(self, value):

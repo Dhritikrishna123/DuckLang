@@ -1,6 +1,6 @@
-from .base_node import ASTNode
+from .base_node import BaseNode
 
-class LiteralNode(ASTNode):
+class LiteralNode(BaseNode):
     """AST node representing literal values."""
 
     def __init__(self, value):

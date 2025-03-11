@@ -1,6 +1,6 @@
-from .base_node import ASTNode
+from .base_node import BaseNode
 
-class VariableNode(ASTNode):
+class VariableNode(BaseNode):
     """AST node representing variable declarations."""
 
     def __init__(self, name, value=None, position=None):

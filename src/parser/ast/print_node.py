@@ -1,6 +1,6 @@
-from .base_node import ASTNode
+from .base_node import BaseNode
 
-class PrintNode(ASTNode):
+class PrintNode(BaseNode):
     """AST node for print statements."""
 
     def __init__(self, expression):

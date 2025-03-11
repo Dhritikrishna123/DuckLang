@@ -1,12 +1,12 @@
-from .base_node import ASTNode
+from .base_node import BaseNode
 
-class AssignmentNode(ASTNode):
+class AssignmentNode(BaseNode):
     """AST node for variable assignments."""
 
-    def __init__(self, name, value):
+    def __init__(self, target, value):
         super().__init__("Assignment")
-        self.name = name
+        self.target = target  # Can be a string (variable name) or ArrayAccessNode
         self.value = value
 
     def __repr__(self):
-        return f"Assignment({self.name} = {self.value})"
+        return f"Assignment({self.target} = {self.value})"

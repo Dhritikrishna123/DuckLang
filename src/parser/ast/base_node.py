@@ -1,4 +1,4 @@
-class ASTNode:
+class BaseNode:
     """Base class for all AST nodes."""
 
     def __init__(self, node_type):

@@ -1,6 +1,6 @@
-from .base_node import ASTNode
+from .base_node import BaseNode
 
-class FunctionCallNode(ASTNode):
+class FunctionCallNode(BaseNode):
     """AST node for function calls."""
 
     def __init__(self, name, arguments):
