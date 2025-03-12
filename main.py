@@ -2,10 +2,11 @@ from src.lexer import Lexer
 from src.parser.main_parser import MainParser
 from src.interpreter import Interpreter
 from src.utils.debug import debug, DebugLevel
+import sys
 
 def execute_program(source_code):
-    # Disable all debug output
-    debug.level = DebugLevel.OFF
+    # Enable debug output
+    debug.level = DebugLevel.DEBUG
     
     # Create instances
     lexer = Lexer()
@@ -15,7 +16,7 @@ def execute_program(source_code):
     
     if ast:
         # Execute the program
-        interpreter = Interpreter(debug_mode=False)
+        interpreter = Interpreter(debug_mode=True)
         try:
             interpreter.interpret(ast)
         except Exception as e:
@@ -24,13 +25,15 @@ def execute_program(source_code):
         print("Parsing Error: Could not generate AST")
 
 def main():
-    # Read from program.duck file
+    # Get filename from command line argument or default to program.duck
+    filename = sys.argv[1] if len(sys.argv) > 1 else 'program.duck'
+    
     try:
-        with open('program.duck', 'r') as file:
+        with open(filename, 'r') as file:
             source_code = file.read()
             execute_program(source_code)
     except FileNotFoundError:
-        print("Error: Could not find 'program.duck' file")
+        print(f"Error: Could not find '{filename}' file")
     except Exception as e:
         print(f"Error: {str(e)}")
 

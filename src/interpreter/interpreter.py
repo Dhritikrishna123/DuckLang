@@ -14,21 +14,29 @@ from ..parser.ast import (
     BlockNode,
     FunctionDefNode,
     FunctionCallNode,
-    ReturnNode
+    ReturnNode,
+    BreakNode,
+    ContinueNode,
+    ForNode
 )
 import sys
 sys.setrecursionlimit(10000)  # Increase recursion limit
+
+class BreakException(Exception):
+    """Exception raised when a break statement is encountered."""
+    pass
+
+class ContinueException(Exception):
+    """Exception raised when a continue statement is encountered."""
+    pass
 
 class Interpreter:
     def __init__(self, debug_mode=False):
         self.symbol_table = {}
         self.component_name = "Interpreter"
-        self.debug_mode = debug_mode
+        self.debug_mode = False  # Always set to False
         self.call_stack = []  # Stack for managing function calls
-        if debug_mode:
-            debug.level = DebugLevel.DEBUG
-        else:
-            debug.level = DebugLevel.OFF
+        debug.level = DebugLevel.OFF  # Always set to OFF
 
     def interpret(self, node):
         """Interpret an AST node and return the result."""
@@ -46,7 +54,6 @@ class Interpreter:
                 # Simple variable assignment
                 value = self.interpret(node.value)
                 self.symbol_table[node.target] = value
-                debug.debug(self.component_name, f"Assigned {node.target} = {value}")
                 return value
             elif isinstance(node.target, ArrayAccessNode):
                 # Array element assignment
@@ -66,7 +73,6 @@ class Interpreter:
                     raise IndexError(f"Array index {idx} out of bounds")
                     
                 array[idx] = value
-                debug.debug(self.component_name, f"Assigned array[{idx}] = {value}")
                 return value
             else:
                 raise TypeError(f"Invalid assignment target: {node.target}")
@@ -112,7 +118,6 @@ class Interpreter:
             else:
                 raise ValueError(f"Unknown operator: {node.operator}")
                 
-            debug.debug(self.component_name, f"Evaluated {left} {node.operator} {right} = {result}")
             return result
             
         elif isinstance(node, UnaryOpNode):
@@ -130,7 +135,6 @@ class Interpreter:
             else:
                 raise ValueError(f"Unknown operator: {node.operator}")
                 
-            debug.debug(self.component_name, f"Evaluated {node.operator}{operand} = {result}")
             return result
             
         elif isinstance(node, PrintNode):
@@ -178,12 +182,40 @@ class Interpreter:
         elif isinstance(node, WhileNode):
             result = None
             while self.interpret(node.condition):
-                result = self.interpret(node.body)
+                try:
+                    result = self.interpret(node.body)
+                except BreakException:
+                    break
+                except ContinueException:
+                    pass  # Skip to next iteration
+                # Any cleanup code (like decrementing counters) should go here
             return result
+            
+        elif isinstance(node, ForNode):
+            # Initialize
+            self.interpret(node.initializer)
+            
+            # Loop
+            result = None
+            while self.interpret(node.condition):
+                try:
+                    result = self.interpret(node.body)
+                except BreakException:
+                    break
+                except ContinueException:
+                    pass  # Continue to increment step
+                # Increment
+                self.interpret(node.increment)
+            return result
+            
+        elif isinstance(node, BreakNode):
+            raise BreakException()
+            
+        elif isinstance(node, ContinueNode):
+            raise ContinueException()
             
         elif isinstance(node, FunctionDefNode):
             self.symbol_table[node.name] = node
-            debug.debug(self.component_name, f"Defined function {node.name}")
             return node
             
         elif isinstance(node, FunctionCallNode):

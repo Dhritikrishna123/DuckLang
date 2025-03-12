@@ -1,42 +1,14 @@
 from ..token_types import TokenType
 from ..state import LexerState, Position
 from .base import TokenHandler
+from src.utils.config import LanguageConfig
 
 class IdentifierHandler(TokenHandler):
-    """Handles identifiers and keywords like IF, FOR, RETURN, AND, OR."""
-
-    keywords = {
-        # Control Flow
-        "for": TokenType.FOR,
-        "if": TokenType.IF,
-        "else": TokenType.ELSE,
-        "while": TokenType.WHILE,
-        "break": TokenType.BREAK,
-        "continue": TokenType.CONTINUE,
-        "return": TokenType.RETURN,
-        
-        # Logical Operators
-        "and": TokenType.AND,
-        "or": TokenType.OR,
-        "not": TokenType.NOT,
-        "in": TokenType.IN,
-        "not_in": TokenType.NOT_IN,
-        "is": TokenType.IS,
-        "is_not": TokenType.IS_NOT,
-        
-        # Data Types
-        "true": TokenType.BOOLEAN,
-        "false": TokenType.BOOLEAN,
-        "none": TokenType.NONE,
-        
-        # Commands
-        "print": TokenType.PRINT_COMMAND,
-        "var": TokenType.VARIABLE_DECLARE,
-        "function": TokenType.FUNCTION
-    }
+    """Handles identifiers and keywords."""
 
     def __init__(self):
         super().__init__()
+        self.config = LanguageConfig.get_instance()
 
     def can_handle(self, state: LexerState):
         """Check if the current character starts an identifier (letter or underscore)."""
@@ -55,17 +27,23 @@ class IdentifierHandler(TokenHandler):
             identifier += char
             state.advance()
 
-        # Determine token type and value
-        token_type = self.keywords.get(identifier.lower(), TokenType.IDENTIFIER)
-        value = identifier
-
-        # Handle boolean literals
+        # Convert to lowercase for keyword comparison
+        lower_identifier = identifier.lower()
+        
+        # Get token type from configuration
+        token_type = self.config.get_token_type(lower_identifier)
+        if token_type is None:
+            token_type = TokenType.IDENTIFIER
+        
+        # Handle special cases
         if token_type == TokenType.BOOLEAN:
-            value = identifier.lower() == "true"
-
-        # Handle none literal
+            value = lower_identifier == self.config.get_keyword(TokenType.BOOLEAN)
         elif token_type == TokenType.NONE:
             value = None
+        elif token_type == TokenType.IDENTIFIER:
+            value = identifier  # Keep original case for identifiers
+        else:
+            value = lower_identifier  # Use lowercase for keywords
 
         # Store the token
         state.add_token(token_type, value, start_pos, identifier)

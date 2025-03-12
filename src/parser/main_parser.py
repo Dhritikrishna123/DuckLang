@@ -14,13 +14,16 @@ from .ast import (
     BlockNode,
     ArrayNode,
     ArrayAccessNode,
-    FunctionDefNode
+    FunctionDefNode,
+    BreakNode,
+    ContinueNode,
+    ForNode
 )
 from src.lexer.token_types import TokenType
 from ..utils.debug import debug, DebugLevel
 
-# Turn off debugging by default
-debug.level = DebugLevel.OFF
+# Disable debugging
+debug.level = DebugLevel.ERROR
 
 class MainParser:
     DEBUG_MODE = False
@@ -31,16 +34,11 @@ class MainParser:
         self.symbol_table = SymbolTable()
         self.component_name = "MainParser"
 
-    def debug(self, msg):
-        if self.DEBUG_MODE:
-            print(f"[DEBUG] {msg}")
-
     def parse(self):
         """Parse the token stream and return an AST."""
         statements = []
         
         while not self.is_at_end():
-            debug.debug(self.component_name, f"Current token: {self.current_token()}")
             statement = self.parse_statement()
             if statement:
                 statements.append(statement)
@@ -54,79 +52,55 @@ class MainParser:
     def parse_statement(self):
         """Parse a statement."""
         current = self.current_token()
-        debug.debug(self.component_name, f"Parsing statement starting with token: {current}")
         
+        statement = None
         if current.token_type == TokenType.PRINT_COMMAND:
-            return self.parse_print_statement()
+            statement = self.parse_print_statement()
         elif current.token_type == TokenType.LEFT_BRACE:
-            return self.parse_block()
+            statement = self.parse_block()
         elif current.token_type == TokenType.FUNCTION:
-            return self.parse_function()
+            statement = self.parse_function_definition()
         elif current.token_type == TokenType.RETURN:
-            return self.parse_return()
+            statement = self.parse_return()
         elif current.token_type == TokenType.IF:
-            return self.parse_if()
+            statement = self.parse_if()
         elif current.token_type == TokenType.WHILE:
-            return self.parse_while()
+            statement = self.parse_while()
         elif current.token_type == TokenType.FOR:
-            return self.parse_for()
+            statement = self.parse_for()
         elif current.token_type == TokenType.BREAK:
-            return self.parse_break()
+            statement = self.parse_break()
         elif current.token_type == TokenType.CONTINUE:
-            return self.parse_continue()
+            statement = self.parse_continue()
+        elif current.token_type == TokenType.VARIABLE_DECLARE:
+            statement = self.parse_variable_declaration()
         else:
-            return self.parse_expression_statement()
+            statement = self.parse_expression_statement()
+        
+        # Consume any trailing semicolon
+        if self.check(TokenType.SEMICOLON):
+            self.consume(TokenType.SEMICOLON)
+        
+        # Skip any whitespace after the statement
+        while self.check(TokenType.WHITESPACE, TokenType.NEWLINE):
+            self.advance()
+            
+        return statement
 
-    def parse_print_statement(self):
-        """Parse a print statement."""
-        self.consume(TokenType.PRINT_COMMAND)
-        self.consume(TokenType.LEFT_PAREN)
-        
-        debug.debug(self.component_name, "Starting expression parse at token: " + str(self.current_token()))
-        expr_parser = ExpressionParser(self.tokens[self.current:])
-        expr, consumed = expr_parser.parse()
-        
-        if not expr:
-            raise SyntaxError("Expected expression after 'print('")
-        
-        self.current += consumed
-        self.consume(TokenType.RIGHT_PAREN)
-        
-        return PrintNode(expr)
-
-    def parse_block(self):
-        """Parse a block of statements."""
-        self.consume(TokenType.LEFT_BRACE)
-        statements = []
-        
-        while not self.is_at_end() and self.current_token().token_type != TokenType.RIGHT_BRACE:
-            statement = self.parse_statement()
-            if statement:
-                statements.append(statement)
-            else:
-                self.synchronize()
-                if self.is_at_end() or self.current_token().token_type == TokenType.RIGHT_BRACE:
-                    break
-                self.advance()
-        
-        if self.is_at_end():
-            raise SyntaxError("Unterminated block")
-        
-        self.consume(TokenType.RIGHT_BRACE)
-        return BlockNode(statements)
-
-    def parse_function(self):
+    def parse_function_definition(self):
         """Parse a function definition."""
         self.consume(TokenType.FUNCTION)
-        name = self.consume(TokenType.IDENTIFIER).value
+        
+        name_token = self.consume(TokenType.IDENTIFIER)
+        name = name_token.value
         
         self.consume(TokenType.LEFT_PAREN)
         parameters = []
         
         if not self.check(TokenType.RIGHT_PAREN):
             while True:
-                param = self.consume(TokenType.IDENTIFIER).value
-                parameters.append(param)
+                param_token = self.consume(TokenType.IDENTIFIER)
+                parameters.append(param_token.value)
                 if not self.match(TokenType.COMMA):
                     break
         
@@ -135,207 +109,154 @@ class MainParser:
         
         return FunctionDefNode(name, parameters, body)
 
-    def parse_return(self):
-        """Parse a return statement."""
-        self.consume(TokenType.RETURN)
+    def parse_block(self):
+        """Parse a block of statements."""
+        self.consume(TokenType.LEFT_BRACE)
+        statements = []
         
-        if self.check(TokenType.SEMICOLON):
-            self.consume(TokenType.SEMICOLON)
-            return ReturnNode(None)
+        while not self.check(TokenType.RIGHT_BRACE) and not self.is_at_end():
+            statement = self.parse_statement()
+            if statement:
+                statements.append(statement)
         
-        expr_parser = ExpressionParser(self.tokens[self.current:])
-        expr, consumed = expr_parser.parse()
-        self.current += consumed
-        
-        if self.check(TokenType.SEMICOLON):
-            self.consume(TokenType.SEMICOLON)
-        
-        return ReturnNode(expr)
+        self.consume(TokenType.RIGHT_BRACE)
+        return BlockNode(statements)
 
     def parse_if(self):
         """Parse an if statement."""
-        debug.debug(self.component_name, "Parsing if statement")
         self.consume(TokenType.IF)
         
-        # Parse condition in parentheses
-        self.consume(TokenType.LEFT_PAREN)
-        expr_parser = ExpressionParser(self.tokens[self.current:])
-        condition, consumed = expr_parser.parse()
+        condition = self.parse_expression()
+        if_block = self.parse_block()
+        else_block = None
         
-        if not condition:
-            debug.error(self.component_name, "Expected condition after 'if('")
-            return None
-        
-        self.current += consumed
-        self.consume(TokenType.RIGHT_PAREN)
-        
-        # Parse then branch
-        then_branch = self.parse_block()
-        if not then_branch:
-            debug.error(self.component_name, "Expected block after 'if' condition")
-            return None
-        
-        # Parse optional else branch
-        else_branch = None
         if self.match(TokenType.ELSE):
-            else_branch = self.parse_block()
-            if not else_branch:
-                debug.error(self.component_name, "Expected block after 'else'")
-                return None
+            else_block = self.parse_block()
         
-        return IfNode(condition, then_branch, else_branch)
+        return IfNode(condition, if_block, else_block)
 
     def parse_while(self):
         """Parse a while statement."""
         self.consume(TokenType.WHILE)
-        self.consume(TokenType.LEFT_PAREN)
         
-        expr_parser = ExpressionParser(self.tokens[self.current:])
-        condition, consumed = expr_parser.parse()
+        condition = self.parse_expression()
+        body = self.parse_block()
         
-        if not condition:
-            raise SyntaxError("Expected condition after 'while('")
-        
-        self.current += consumed
-        self.consume(TokenType.RIGHT_PAREN)
-        
-        body = self.parse_statement()
         return WhileNode(condition, body)
 
-    def parse_for(self):
-        """Parse a for statement."""
-        self.consume(TokenType.FOR)
-        self.consume(TokenType.LEFT_PAREN)
-        
-        # Initializer
-        initializer = None
-        if not self.check(TokenType.SEMICOLON):
-            expr_parser = ExpressionParser(self.tokens[self.current:])
-            initializer, consumed = expr_parser.parse()
-            self.current += consumed
-        self.consume(TokenType.SEMICOLON)
-        
-        # Condition
-        condition = None
-        if not self.check(TokenType.SEMICOLON):
-            expr_parser = ExpressionParser(self.tokens[self.current:])
-            condition, consumed = expr_parser.parse()
-            self.current += consumed
-        self.consume(TokenType.SEMICOLON)
-        
-        # Increment
-        increment = None
-        if not self.check(TokenType.RIGHT_PAREN):
-            expr_parser = ExpressionParser(self.tokens[self.current:])
-            increment, consumed = expr_parser.parse()
-            self.current += consumed
-        self.consume(TokenType.RIGHT_PAREN)
-        
-        body = self.parse_statement()
-        return ForNode(initializer, condition, increment, body)
+    def parse_expression(self):
+        """Parse an expression."""
+        expr_parser = ExpressionParser(self.tokens[self.current:])
+        expr, consumed = expr_parser.parse()
+        self.current += consumed
+        return expr
+
+    def parse_expression_statement(self):
+        """Parse an expression statement."""
+        expr = self.parse_expression()
+        if self.check(TokenType.SEMICOLON):
+            self.consume(TokenType.SEMICOLON)
+        return expr
+
+    def parse_print_statement(self):
+        """Parse a print statement."""
+        self.consume(TokenType.PRINT_COMMAND)
+        expression = self.parse_expression()
+        return PrintNode(expression)
+
+    def parse_return(self):
+        """Parse a return statement."""
+        self.consume(TokenType.RETURN)
+        value = None
+        if not self.check(TokenType.RIGHT_BRACE):
+            value = self.parse_expression()
+        return ReturnNode(value)
 
     def parse_break(self):
         """Parse a break statement."""
         self.consume(TokenType.BREAK)
-        if self.check(TokenType.SEMICOLON):
-            self.consume(TokenType.SEMICOLON)
         return BreakNode()
 
     def parse_continue(self):
         """Parse a continue statement."""
         self.consume(TokenType.CONTINUE)
-        if self.check(TokenType.SEMICOLON):
-            self.consume(TokenType.SEMICOLON)
         return ContinueNode()
 
-    def parse_expression_statement(self):
-        """Parse an expression statement."""
-        debug.debug(self.component_name, f"Starting expression parse at token: {self.current_token()}")
-        expr_parser = ExpressionParser(self.tokens[self.current:])
-        expr, consumed = expr_parser.parse()
+    def parse_variable_declaration(self):
+        """Parse a variable declaration."""
+        self.consume(TokenType.VARIABLE_DECLARE)
+        name_token = self.consume(TokenType.IDENTIFIER)
+        name = name_token.value
         
-        if expr:
-            debug.debug(self.component_name, f"Parsed expression: {expr}, consumed {consumed} tokens")
-            self.current += consumed
-            if self.check(TokenType.SEMICOLON):
-                self.consume(TokenType.SEMICOLON)
-            return expr
-        
-        debug.error(self.component_name, "Failed to parse expression statement")
-        return None
+        if not self.match(TokenType.ASSIGN):
+            return None
+            
+        value = self.parse_expression()
+        return AssignmentNode(name, value)
 
     def is_at_end(self):
         """Check if we've reached the end of the token stream."""
         return self.current >= len(self.tokens)
 
-    def peek(self):
-        """Return the current token without consuming it."""
+    def current_token(self):
+        """Get the current token."""
         if self.is_at_end():
-            return None
+            return self.tokens[-1]
         return self.tokens[self.current]
 
     def previous(self):
-        """Return the previously consumed token."""
-        if self.current == 0:
-            return None
+        """Get the previous token."""
         return self.tokens[self.current - 1]
 
     def advance(self):
-        """Consume and return the current token."""
+        """Advance to the next token."""
         if not self.is_at_end():
             self.current += 1
-            debug.trace(self.component_name, f"Advanced to token: {self.peek()}")
         return self.previous()
+
+    def match(self, *types):
+        """Match and consume a token if it matches any of the given types."""
+        for t in types:
+            if self.check(t):
+                self.advance()
+                return True
+        return False
 
     def check(self, *types):
         """Check if the current token is of any of the given types."""
         if self.is_at_end():
             return False
-        current_token = self.peek()
-        return any(current_token.token_type == t for t in types)
+        return self.current_token().token_type in types
 
-    def match(self, *types):
-        """Check if the current token matches any of the given types and consume it if so."""
-        for token_type in types:
-            if self.check(token_type):
-                debug.debug(self.component_name, f"Matched token: {self.peek()}")
-                self.advance()
-                return True
-        return False
-
-    def consume(self, token_type, error_message=None):
-        """Consume the current token if it matches the expected type, otherwise raise an error."""
-        if self.check(token_type):
-            debug.debug(self.component_name, f"Consumed token: {self.peek()}")
-            return self.advance()
+    def consume(self, expected_type, error_message=None):
+        """Consume a token of the expected type."""
         if error_message is None:
-            error_message = f"Expected {token_type}"
-        raise SyntaxError(error_message)
-
-    def current_token(self):
-        """Return the current token."""
-        if self.is_at_end():
-            return None
-        return self.tokens[self.current]
+            error_message = f"Expected {expected_type}"
+            
+        if self.check(expected_type):
+            return self.advance()
+            
+        raise SyntaxError(f"{error_message}, got {self.current_token()}")
 
     def synchronize(self):
         """Skip tokens until we find a statement boundary."""
+        self.advance()
+
         while not self.is_at_end():
-            if self.check(TokenType.SEMICOLON):
-                self.advance()
+            if self.previous().token_type == TokenType.SEMICOLON:
                 return
-            
-            current = self.peek()
-            if current.token_type in (
+
+            if self.current_token().token_type in {
                 TokenType.FUNCTION,
+                TokenType.VARIABLE_DECLARE,
+                TokenType.FOR,
                 TokenType.IF,
                 TokenType.WHILE,
-                TokenType.FOR,
+                TokenType.PRINT_COMMAND,
                 TokenType.RETURN,
-                TokenType.PRINT_COMMAND
-            ):
+            }:
                 return
-            
+
             self.advance()
 
     def resolve_expression(self, expr):
@@ -343,7 +264,6 @@ class MainParser:
         if isinstance(expr, VariableNode):
             value = self.symbol_table.get(expr.name)
             if value is not None:
-                debug.debug(self.component_name, f"Resolved Variable: {expr.name} -> {value}")
                 return value
             return expr  # If the variable is undefined, return the node itself
 
@@ -353,7 +273,6 @@ class MainParser:
 
             if isinstance(expr.left, LiteralNode) and isinstance(expr.right, LiteralNode):
                 result = expr.evaluate()
-                debug.debug(self.component_name, f"Evaluated BinaryOp: {expr.left} {expr.operator} {expr.right} = {result}")
                 return result
 
         elif isinstance(expr, ArrayAccessNode):
