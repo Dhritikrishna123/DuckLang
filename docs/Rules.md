@@ -273,31 +273,138 @@ KEYWORD_VAR=let
 
 ## Error Handling
 
-### Common Errors
+DuckLang provides a robust and customizable error handling system. Errors can be customized through the `.env` file, allowing you to set your own error messages while maintaining helpful debugging information.
+
+### Error Types
 
 1. **Syntax Errors**
-```python
-when x > 0 {    # Error if KEYWORD_IF is not set to "when"
-    show(x)     # Error if KEYWORD_PRINT is not set to "show"
-}
+   - Invalid token sequences
+   - Missing brackets or parentheses
+   - Incorrect indentation
+   - Unknown keywords
+
+2. **Runtime Errors**
+   - Division by zero
+   - Undefined variables
+   - Type mismatches
+   - Stack overflow
+   - Invalid function calls
+
+3. **Configuration Errors**
+   - Invalid keyword definitions
+   - Duplicate keywords
+   - Missing required configurations
+
+### Customizing Error Messages
+
+Error messages can be customized in your `.env` file:
+
+```env
+# Syntax Errors
+ERROR_SYNTAX_GENERIC="Oops! Something's not quite right at line {line}"
+ERROR_MISSING_BRACKET="Hey! You forgot a {bracket_type} at line {line}"
+ERROR_INVALID_TOKEN="Unexpected {token} at line {line}"
+
+# Runtime Errors
+ERROR_DIVISION_BY_ZERO="Division by zero? That's infinitely bad!"
+ERROR_UNDEFINED_VAR="Can't find '{var_name}'. Did it fly away?"
+ERROR_TYPE_MISMATCH="Expected {expected_type} but got {actual_type}"
+
+# Configuration Errors
+ERROR_INVALID_KEYWORD="'{keyword}' isn't a valid keyword name"
+ERROR_DUPLICATE_KEYWORD="'{keyword}' is already used for {existing_use}"
 ```
 
-2. **Configuration Errors**
-- Duplicate keyword definitions
-- Invalid keyword names
-- Missing required keywords
+### Error Message Format
 
-### Error Messages
-The language provides clear error messages indicating:
-- Line number where the error occurred
-- Expected vs. received tokens
-- Configuration-related issues
+Each error message can include placeholders for dynamic information:
+- `{line}` - Line number
+- `{column}` - Column number
+- `{token}` - The problematic token
+- `{expected}` - Expected value/type
+- `{actual}` - Actual value/type
+- `{file}` - File name
 
-### Best Practices
-1. Keep a backup of your default configuration
-2. Test your custom keywords thoroughly
-3. Document your custom language syntax
-4. Maintain consistency in keyword naming
+### Default Fun Error Messages
+
+If no custom error messages are defined, DuckLang uses these quirky fallbacks:
+
+```python
+# Syntax Errors
+"Quack! Your code seems a bit scrambled at line {line}"
+"Waddle waddle... can't parse that!"
+"This syntax makes me want to duck for cover!"
+
+# Runtime Errors
+"Your code took a wrong turn at the duck pond"
+"That operation is like dividing by zero ducks... impossible!"
+"This variable seems to have flown south for the winter"
+
+# Type Errors
+"Expected a duck, but got a goose!"
+"These types don't flock together"
+```
+
+### Error Output Format
+
+Errors are displayed in a clear, structured format:
+
+```
+🦆 DuckLang Error: Type Mismatch
+📍 Line 42, Column 10 in 'example.duck'
+❌ Expected number but got string
+
+Code:
+   41 | var x = 5
+-> 42 | x = "hello"
+   43 | print(x)
+
+Custom Message: These types don't flock together!
+Suggestion: Try converting "hello" to a number first
+```
+
+### Error Handling Best Practices
+
+1. **Clear Messages**
+   - Use descriptive but concise messages
+   - Include relevant variable/function names
+   - Provide suggestions when possible
+
+2. **Consistent Format**
+   - Always include line numbers
+   - Show the problematic code snippet
+   - Provide a suggestion if applicable
+
+3. **Custom Messages**
+   - Keep messages user-friendly
+   - Use appropriate technical terms
+   - Maintain helpful context
+
+4. **Configuration**
+   - Back up default error messages
+   - Test custom messages thoroughly
+   - Keep messages language-appropriate
+
+### Example Error Configurations
+
+Here's a complete example of custom error messages:
+
+```env
+# Professional Style
+ERROR_SYNTAX="Syntax Error: Invalid syntax at line {line}"
+ERROR_TYPE="Type Error: Cannot perform {operation} with {type1} and {type2}"
+ERROR_NAME="Name Error: '{name}' is not defined in current scope"
+
+# Fun Style
+ERROR_SYNTAX="Quack Attack! Code went wonky at line {line}"
+ERROR_TYPE="These types are like oil and water, they don't mix!"
+ERROR_NAME="Looks like '{name}' took a swim and never came back"
+
+# Educational Style
+ERROR_SYNTAX="Let's check the syntax at line {line}. Remember: {rule}"
+ERROR_TYPE="Hint: {type1} operations can't work with {type2} values"
+ERROR_NAME="'{name}' hasn't been created yet. Did you forget to declare it?"
+```
 
 ## Development Status
 
